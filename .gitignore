@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/
+env/
+
+.env
+
+app/data/company_docs/*
+!app/data/company_docs/.gitkeep

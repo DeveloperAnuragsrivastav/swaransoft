@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sawaransoft Assistant</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f2f4f7; margin: 0; padding: 0; }
+  .chat-container { max-width: 480px; margin: 30px auto; background: #fff; border-radius: 10px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+  .chat-header { background: #1a73e8; color: white; padding: 16px; font-size: 18px; font-weight: bold; }
+  .chat-messages { height: 420px; overflow-y: auto; padding: 16px; }
+  .msg { margin-bottom: 12px; padding: 10px 14px; border-radius: 10px; max-width: 80%; line-height: 1.4; }
+  .msg.user { background: #1a73e8; color: white; margin-left: auto; }
+  .msg.bot { background: #eef1f5; color: #222; }
+  .chat-input { display: flex; border-top: 1px solid #ddd; padding: 10px; gap: 8px; }
+  .chat-input input[type=text] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+  .chat-input button { padding: 10px 14px; border: none; background: #1a73e8; color: white;
+                        border-radius: 6px; cursor: pointer; }
+  .chat-input button:hover { background: #1558b0; }
+  iframe.map { width: 100%; height: 180px; border: 0; border-radius: 6px; margin-top: 8px; }
+  .file-row { display: flex; gap: 8px; padding: 0 10px 10px; }
+</style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="chat-header">Sawaransoft Assistant</div>
+  <div class="chat-messages" id="messages"></div>
+  <div class="file-row">
+    <input type="file" id="imageInput" accept="image/*">
+    <span id="imageName" style="font-size:12px;color:#666;align-self:center;"></span>
+    <select id="languageSelect" style="margin-left:auto;padding:4px;border-radius:6px;">
+      <option value="">Auto-detect</option>
+      <option value="en">English</option>
+      <option value="hi">Hindi</option>
+      <option value="ta">Tamil</option>
+      <option value="te">Telugu</option>
+      <option value="mr">Marathi</option>
+      <option value="gu">Gujarati</option>
+      <option value="bn">Bengali</option>
+      <option value="pa">Punjabi</option>
+    </select>
+  </div>
+  <div class="file-row" style="align-items:center;">
+    <label style="font-size:13px;color:#444;">
+      <input type="checkbox" id="speakToggle"> Read replies aloud
+    </label>
+  </div>
+  <div class="chat-input">
+    <button id="micBtn" onclick="toggleMic()" title="Speak instead of typing" style="background:#eef1f5;color:#1a73e8;">🎤</button>
+    <input type="text" id="userInput" placeholder="Ask about Sawaransoft, or attach an image above..." onkeydown="if(event.key==='Enter') sendMessage()">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+const messagesEl = document.getElementById('messages');
+
+function addMessage(text, sender) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + sender;
+  div.innerText = text;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+function addMap(lat, lng) {
+  const iframe = document.createElement('iframe');
+  iframe.className = 'map';
+  iframe.src = `https://www.google.com/maps?q=${lat},${lng}&output=embed`;
+  messagesEl.appendChild(iframe);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+const imageInput = document.getElementById('imageInput');
+imageInput.addEventListener('change', () => {
+  document.getElementById('imageName').innerText =
+    imageInput.files.length ? imageInput.files[0].name : '';
+});
+
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  const hasImage = imageInput.files.length > 0;
+
+  if (!text && !hasImage) return;
+
+  addMessage(text || '[Sent an image]', 'user');
+
+  // Single unified endpoint: send text, image, and language preference together
+  const formData = new FormData();
+  if (text) formData.append('message', text);
+  if (hasImage) formData.append('image', imageInput.files[0]);
+  const selectedLang = document.getElementById('languageSelect').value;
+  if (selectedLang) formData.append('language', selectedLang);
+
+  const res = await fetch('/chat', { method: 'POST', body: formData });
+  const data = await res.json();
+
+  addMessage(data.text, 'bot');
+  if (data.type === 'location' && data.latitude) {
+    addMap(data.latitude, data.longitude);
+  }
+
+  if (document.getElementById('speakToggle').checked) {
+    speakText(data.text, data.language || selectedLang || 'en');
+  }
+
+  // reset inputs after sending
+  input.value = '';
+  imageInput.value = '';
+  document.getElementById('imageName').innerText = '';
+}
+
+// --- Voice input (speech-to-text) ---
+// Maps our language codes to the BCP-47 tags SpeechRecognition/SpeechSynthesis expect
+const SPEECH_LANG_MAP = {
+  en: 'en-US', hi: 'hi-IN', ta: 'ta-IN', te: 'te-IN',
+  mr: 'mr-IN', gu: 'gu-IN', bn: 'bn-IN', pa: 'pa-IN',
+};
+
+let recognition = null;
+let isListening = false;
+
+function getSpeechLang() {
+  const selected = document.getElementById('languageSelect').value;
+  return SPEECH_LANG_MAP[selected] || 'en-US';
+}
+
+function toggleMic() {
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognitionAPI) {
+    alert('Voice input is not supported in this browser. Try Chrome or Edge.');
+    return;
+  }
+
+  if (isListening) {
+    recognition.stop();
+    return;
+  }
+
+  recognition = new SpeechRecognitionAPI();
+  recognition.lang = getSpeechLang();
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  const micBtn = document.getElementById('micBtn');
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.style.background = '#1a73e8';
+    micBtn.style.color = 'white';
+  };
+
+  recognition.onresult = (event) => {
+    const spokenText = event.results[0][0].transcript;
+    document.getElementById('userInput').value = spokenText;
+    sendMessage();
+  };
+
+  recognition.onerror = () => {
+    isListening = false;
+    micBtn.style.background = '#eef1f5';
+    micBtn.style.color = '#1a73e8';
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    micBtn.style.background = '#eef1f5';
+    micBtn.style.color = '#1a73e8';
+  };
+
+  recognition.start();
+}
+
+// --- Voice output (text-to-speech) ---
+function speakText(text, langCode) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel(); // stop any previous speech first
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = SPEECH_LANG_MAP[langCode] || 'en-US';
+  window.speechSynthesis.speak(utterance);
+}
+</script>
+
+</body>
+</html>
