@@ -1,151 +1,111 @@
-# Sawaransoft Company Chatbot
+# Swaran Soft Assistant
 
-A chatbot that answers questions **only** about Sawaransoft, using your own
-company PDFs as its knowledge base. Also supports:
-- 📍 Company location queries (returns exact address + embedded map)
-- 🖼️ Image uploads (ask questions about a photo/scanned document)
-- 📄 PDF-based knowledge (RAG — Retrieval Augmented Generation)
+A FastAPI chatbot with the approved Swaran Soft interface: enlarged original logo,
+DM Sans and Syne typography, responsive conversation sidebar, formatted Markdown,
+image attachments, voice input and read-aloud, and multilingual replies.
 
-100% free stack — no paid API keys required except Pinecone's free tier.
+Groq supplies both text and image understanding. The app does not require Ollama.
+Progress appears beneath the assistant name and is replaced by the streamed answer.
+Progress labels describe application stages, not the model's private reasoning.
 
----
+## Run locally
 
-## 1. Prerequisites
-
-- Python 3.10+
-- [Ollama](https://ollama.com) installed locally
-- A free [Pinecone](https://www.pinecone.io) account + API key
-
-### Pull the required local models
-```bash
-ollama pull llama3.1   # text answers
-ollama pull llava       # image understanding
-```
-Keep Ollama running in the background (it runs as a local server automatically after install).
-
----
-
-## 2. Setup
+Use Python 3.11 or 3.12.
 
 ```bash
-# 1. Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate       # on Windows: venv\Scripts\activate
-
-# 2. Install dependencies
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# 3. Configure environment variables
 cp .env.example .env
-# then edit .env and add your PINECONE_API_KEY + company address
 ```
 
----
+Set `GROQ_API_KEY` in `.env`, then start the app:
 
-## 3. Add your company documents
-
-Place your company PDFs into:
-```
-app/data/company_docs/
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Then run the ingestion script (loads + embeds + stores them in Pinecone):
+Open http://127.0.0.1:8000. Restart the server after changing `.env`.
+The key stays on the server; `.env` and uploaded company PDFs are ignored by Git.
+
+If you only need the public company profile (no Pinecone/PDF ingestion), use the
+lighter `pip install -r requirements-web.txt` instead of the full requirements.
+
+## Configuration
+
+| Setting | Purpose |
+| --- | --- |
+| `GROQ_API_KEY` | Required for AI replies and image review. Create a key in your Groq account. |
+| `GROQ_TEXT_MODEL` | Defaults to `openai/gpt-oss-120b`. Change to a text model available to your account. |
+| `GROQ_VISION_MODEL` | Defaults to `qwen/qwen3.6-27b`. Requires a Groq model with image support; this default is a preview model. |
+| `PINECONE_API_KEY` | Optional company PDF knowledge base. Without it, answers use the bundled public company profile. |
+| `PINECONE_INDEX_NAME` | Existing 384-dimensional MiniLM index name. |
+| `ADMIN_UPLOAD_TOKEN` | A separate secret for the admin PDF upload endpoint. Blank disables uploads. Not needed for ordinary chat. |
+| `COMPANY_ADDRESS` | Verified office address shown in location replies. |
+| `COMPANY_LATITUDE`, `COMPANY_LONGITUDE` | Optional verified map coordinates. Leave both blank to omit the map. |
+
+Never enter Groq keys in frontend code or chat messages. The connection label
+means a key is configured, not that Groq has authenticated it. Invalid keys,
+rate limits, network failures, and missing configuration appear as recoverable errors.
+
+## Company documents
+
+Set Pinecone configuration and install the full requirements. Place text-based
+company PDFs in `app/data/company_docs/`, then run:
+
 ```bash
 python ingest.py
 ```
 
-Re-run this any time you add or update PDFs.
+The embedding model loads lazily when documents are queried or ingested. Its
+first use downloads `all-MiniLM-L6-v2`. Pinecone and Groq require network access.
+Scanned PDFs require OCR before ingestion.
 
----
+`POST /upload/pdf` also ingests a PDF when an `Authorization: Bearer <admin token>`
+header is provided. The token is never exposed in the public chat interface.
+PDFs are limited to 20 MB. The direct ingestion script remains available without
+the HTTP upload token to the person running the server.
 
-## 4. Run the app
+The fallback public profile is a small, dated summary of https://swaransoft.com/,
+not a live website search. Refresh `PUBLIC_PROFILE` as company details change.
+Context sources identify documents retrieved for an answer, not sentence-level citations.
+
+## Chat behavior
+
+- `POST /chat/stream`: multipart fields `message`, optional `image`, `language`, and
+  a JSON `history` list. Emits SSE `status`, `delta`, `done`, or `error` events.
+- `POST /chat`: the same fields with a JSON response, preserving the original API.
+- `GET /location`: configured office location. No invented coordinates.
+- `GET /health`: application state and whether Groq is configured, without secrets.
+- Supports English, Hindi, Tamil, Telugu, Marathi, Gujarati, Bengali, and Punjabi.
+- Image uploads accept PNG/JPEG/WebP up to 4 MB and 20 megapixels. Images go to
+  Groq for analysis. They are not added to the company knowledge base.
+- Conversation text is kept in browser session storage. Only bounded recent
+  history is sent with each request. Images are held in memory, not session storage;
+  after reloading, reattach an image to retry its request.
+- Stop cancels the browser request and upstream async streaming. Partial or failed
+  assistant replies are excluded from later context.
+- Voice input uses the browser's speech service and may require microphone
+  permission. Read-aloud uses browser speech synthesis.
+
+## Verification
 
 ```bash
-uvicorn app.main:app --reload
+python -m unittest discover -s tests -v
+node --check static/chat.js
 ```
 
-Open your browser at: **http://localhost:8000**
+Tests use a mocked Groq transport. A real Groq key and a configured Pinecone index
+are needed for live provider checks. No simulated responses are shipped in the UI.
 
----
+The UI serves from the same origin as the API. Before exposing this internal app
+publicly, deploy behind HTTPS, access controls, and request/rate limits appropriate
+to your users. The document upload token protects only the ingestion endpoint.
 
-## 5. How it works
+## Reference
 
-1. **Text question** → checked for location keywords first → otherwise sent through
-   the RAG pipeline: your question is embedded, relevant PDF chunks are retrieved
-   from Pinecone, and the local LLM answers using ONLY that context.
-2. **Location question** (e.g. "where are you located?") → answered instantly from
-   a fixed config (`app/core/config.py`), never guessed by the LLM.
-3. **Image upload** → sent to the local vision model (`llava`) for description/Q&A.
-
----
-
-## 6. Project structure
-
-```
-app/
-├── main.py              # FastAPI app entrypoint
-├── routes/
-│   ├── chat.py          # /chat endpoint
-│   ├── upload.py        # /upload/pdf and /upload/image endpoints
-│   └── location.py       # /location endpoint
-├── core/
-│   ├── config.py        # loads .env values
-│   ├── rag.py            # embeddings + Pinecone + grounded answering
-│   ├── pdf_loader.py     # PDF text extraction + chunking
-│   ├── llm.py            # Ollama wrapper (text + vision)
-│   └── location.py       # location keyword detection
-├── data/company_docs/    # put your PDFs here
-static/index.html          # simple chat UI
-ingest.py                  # one-time script to load PDFs into Pinecone
-```
-
----
-
-## 7. Multi-language support
-
-The chatbot auto-detects the user's language (English, Hindi, Tamil, Telugu,
-Marathi, Gujarati, Bengali, Punjabi) and replies in the same language. Users
-can also force a specific language using the dropdown in the UI.
-
-**How it works:** the user's message is translated to English internally
-(so RAG/location logic only deals with one language), processed as normal,
-then the final answer is translated back. This uses `deep-translator`
-(free, no API key) which **requires internet access** — unlike the rest of
-the stack (Ollama, Pinecone embeddings) which can run offline once set up.
-
-If the user only sends an image (no typed text), the language defaults to
-English since there's nothing to detect from.
-
----
-
-## 8. Voice chat (input + output)
-
-Voice is handled entirely in the browser using the **Web Speech API** — no
-new Python packages, no server changes needed.
-
-- **🎤 mic button** — click it, speak your question, and it auto-fills the
-  text box and sends it for you. Uses `SpeechRecognition`.
-- **"Read replies aloud" checkbox** — when checked, the bot's text answer
-  is also spoken out loud using `speechSynthesis`.
-- Both respect the **language dropdown** — e.g. select Hindi, and the mic
-  listens for Hindi speech and replies are spoken in Hindi.
-
-**Browser support:** works in Chrome and Edge. Voice input needs internet
-(like the translation feature) since recognition runs through the browser's
-speech service. If a browser doesn't support it, the mic button shows an
-alert instead of failing silently.
-
----
-
-## 9. Things to customize before your demo
-
-- [ ] Fill in real `COMPANY_ADDRESS`, `COMPANY_LATITUDE`, `COMPANY_LONGITUDE` in `.env`
-- [ ] Add your real company PDFs to `app/data/company_docs/`
-- [ ] Run `python ingest.py`
-- [ ] Test a few sample questions (see below)
-
-### Sample test questions
-- "Where is Sawaransoft located?" → should return address + map
-- "What services does Sawaransoft offer?" → should answer from your PDF
-- "What's the capital of France?" → should say it doesn't have that info (this proves it's scoped correctly)
-- Upload an image → ask "what is in this image?"
+Branding and layout colours: [Swaran Soft](https://swaransoft.com/).
+Provider contract: [Groq API compatibility](https://console.groq.com/docs/openai),
+[supported models](https://console.groq.com/docs/models), and
+[vision](https://console.groq.com/docs/vision).
+Vendored Lucide, Marked, and DOMPurify retain their upstream license notices.

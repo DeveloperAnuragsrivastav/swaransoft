@@ -1,22 +1,21 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import PROJECT_ROOT, GROQ_API_KEY, PINECONE_API_KEY
 
 from app.routes import chat, upload, location
 
-app = FastAPI(title="Sawaransoft Company Chatbot")
+app = FastAPI(title="Swaran Soft Assistant")
 
-# Allow the simple frontend (or any origin during development) to call the API
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "provider": "groq",
+            "configured": bool(GROQ_API_KEY and not GROQ_API_KEY.startswith("your_")),
+            "knowledge": "documents" if PINECONE_API_KEY and not PINECONE_API_KEY.startswith("your_") else "public_profile"}
 
 app.include_router(chat.router)
 app.include_router(upload.router)
 app.include_router(location.router)
 
 # Serve the simple chat UI at the root
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount("/", StaticFiles(directory=PROJECT_ROOT / "static", html=True), name="static")

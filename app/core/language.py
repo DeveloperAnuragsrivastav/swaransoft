@@ -5,8 +5,8 @@ Handles multi-language support:
   only ever has to deal with one language)
 - Translates the final answer back to the user's language
 
-Uses deep-translator (free, no API key, but needs internet access -
-unlike the rest of this stack which runs fully offline via Ollama).
+Uses deep-translator for retrieval queries and fixed location responses.
+Groq generates other replies directly in the selected language.
 """
 from langdetect import detect, DetectorFactory
 from deep_translator import GoogleTranslator
