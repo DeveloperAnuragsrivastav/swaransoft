@@ -8,11 +8,13 @@ from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
+os.environ.setdefault("HF_XET_CACHE", str(PROJECT_ROOT / ".model_cache" / "xet"))
 
 # --- Pinecone ---
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "sawaransoft-chatbot")
-EMBEDDING_DIMENSION = 384  # matches all-MiniLM-L6-v2
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "company-rag-index")
+EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
+EMBEDDING_DIMENSION = 768
 
 # --- Groq (server-side credentials only) ---
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()

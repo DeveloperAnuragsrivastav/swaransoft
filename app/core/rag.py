@@ -1,7 +1,10 @@
 """Lazy local embeddings, Pinecone retrieval, and grounded prompt construction."""
 from functools import lru_cache
 from threading import Lock
-from app.core.config import PINECONE_API_KEY, PINECONE_INDEX_NAME, EMBEDDING_DIMENSION
+from app.core.config import (
+    PINECONE_API_KEY, PINECONE_INDEX_NAME, EMBEDDING_DIMENSION,
+    EMBEDDING_MODEL, PROJECT_ROOT,
+)
 
 _embedding_lock = Lock()
 
@@ -29,7 +32,10 @@ def get_pinecone():
 @lru_cache(maxsize=1)
 def get_embedder():
     from sentence_transformers import SentenceTransformer
-    return SentenceTransformer("all-MiniLM-L6-v2")
+    model = SentenceTransformer(EMBEDDING_MODEL, cache_folder=str(PROJECT_ROOT / ".model_cache"))
+    if model.get_sentence_embedding_dimension() != EMBEDDING_DIMENSION:
+        raise RuntimeError("Embedding model dimensions do not match the configured vector size.")
+    return model
 
 
 def ensure_index_exists():
@@ -40,8 +46,15 @@ def ensure_index_exists():
                         metric="cosine", spec=ServerlessSpec(cloud="aws", region="us-east-1"))
 
 
+@lru_cache(maxsize=1)
 def get_index():
-    return get_pinecone().Index(PINECONE_INDEX_NAME)
+    pc = get_pinecone()
+    description = pc.describe_index(PINECONE_INDEX_NAME)
+    if description.dimension != EMBEDDING_DIMENSION:
+        raise RuntimeError(
+            f"Pinecone index has {description.dimension} dimensions; the embedding model uses {EMBEDDING_DIMENSION}."
+        )
+    return pc.Index(host=description.host)
 
 
 def embed_text(text: str) -> list[float]:

@@ -39,7 +39,7 @@ lighter `pip install -r requirements-web.txt` instead of the full requirements.
 | `GROQ_TEXT_MODEL` | Defaults to `openai/gpt-oss-120b`. Change to a text model available to your account. |
 | `GROQ_VISION_MODEL` | Defaults to `qwen/qwen3.6-27b`. Requires a Groq model with image support; this default is a preview model. |
 | `PINECONE_API_KEY` | Optional company PDF knowledge base. Without it, answers use the bundled public company profile. |
-| `PINECONE_INDEX_NAME` | Existing 384-dimensional MiniLM index name. |
+| `PINECONE_INDEX_NAME` | Defaults to `company-rag-index`, a 768-dimensional cosine index. |
 | `ADMIN_UPLOAD_TOKEN` | A separate secret for the admin PDF upload endpoint. Blank disables uploads. Not needed for ordinary chat. |
 | `COMPANY_ADDRESS` | Verified office address shown in location replies. |
 | `COMPANY_LATITUDE`, `COMPANY_LONGITUDE` | Optional verified map coordinates. Leave both blank to omit the map. |
@@ -58,7 +58,10 @@ python ingest.py
 ```
 
 The embedding model loads lazily when documents are queried or ingested. Its
-first use downloads `all-MiniLM-L6-v2`. Pinecone and Groq require network access.
+first use downloads `sentence-transformers/all-mpnet-base-v2` into the ignored
+`.model_cache/` directory. Both document ingestion and queries use its 768-dimensional
+vectors. Existing vectors must use this same model, not merely the same dimension;
+re-ingest documents if they were embedded using a different model. Pinecone and Groq require network access.
 Scanned PDFs require OCR before ingestion.
 
 `POST /upload/pdf` also ingests a PDF when an `Authorization: Bearer <admin token>`

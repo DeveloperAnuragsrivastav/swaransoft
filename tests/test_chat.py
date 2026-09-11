@@ -2,6 +2,8 @@ import io
 import json
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import httpx
 from PIL import Image
@@ -19,6 +21,29 @@ def groq_stream(parts=("Hello ", "from Groq."), done=True):
 
 
 class ChatTests(unittest.IsolatedAsyncioTestCase):
+    def test_index_dimension_must_match_embedding_model(self):
+        pc = MagicMock()
+        pc.describe_index.return_value = SimpleNamespace(dimension=384, host="unused")
+        rag.get_index.cache_clear()
+        try:
+            with patch.object(rag, "get_pinecone", return_value=pc):
+                with self.assertRaisesRegex(RuntimeError, "384.*768"):
+                    rag.get_index()
+            pc.Index.assert_not_called()
+        finally:
+            rag.get_index.cache_clear()
+
+    def test_768_dimension_index_is_accepted(self):
+        pc = MagicMock()
+        pc.describe_index.return_value = SimpleNamespace(dimension=768, host="test-host")
+        rag.get_index.cache_clear()
+        try:
+            with patch.object(rag, "get_pinecone", return_value=pc):
+                self.assertIs(rag.get_index(), pc.Index.return_value)
+            pc.Index.assert_called_once_with(host="test-host")
+        finally:
+            rag.get_index.cache_clear()
+
     async def asyncSetUp(self):
         self.api = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
 
