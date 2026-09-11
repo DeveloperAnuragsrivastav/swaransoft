@@ -266,9 +266,8 @@
   async function checkHealth() {
     try {
       const response=await fetch('/health',{signal:AbortSignal.timeout(5000)}); if(!response.ok) throw new Error(); const health=await response.json();
-      $('connection').dataset.state=health.configured ? 'ready' : 'setup'; $('connection-label').textContent=health.configured ? 'Groq configured' : 'Setup needed';
       $('setup').hidden=health.configured; $('setup').textContent=health.configured ? '' : 'The assistant is waiting for its Groq connection. Add the server API key to enable AI replies.';
-    } catch { $('connection').dataset.state='offline';$('connection-label').textContent='Offline'; }
+    } catch { notice('The assistant could not be reached. Please refresh to reconnect.'); }
   }
   $('form').addEventListener('submit',event=>{event.preventDefault();if(pending)stopResponse();else send();});
   $('input').addEventListener('input',()=>{ $('input').style.height='auto';$('input').style.height=Math.min($('input').scrollHeight,150)+'px';controls(); });

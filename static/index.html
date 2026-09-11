@@ -6,11 +6,11 @@
   <meta name="description" content="Swaran Soft's company assistant for services, projects, and company knowledge.">
   <title>Swaran Soft Assistant</title>
   <link rel="icon" href="/assets/swaransoft-logo.png">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=20260911-2">
   <script defer src="/vendor/lucide.min.js"></script>
   <script defer src="/vendor/marked.js"></script>
   <script defer src="/vendor/purify.min.js"></script>
-  <script defer src="/chat.js"></script>
+  <script defer src="/chat.js?v=20260911-2"></script>
 </head>
 <body>
 <div id="swaran-app">
@@ -25,7 +25,7 @@
     <main class="sw-main">
       <header class="sw-topbar">
         <div class="sw-topbar-title"><button class="sw-icon sw-menu" id="sw-menu" aria-label="Toggle conversations" aria-controls="sw-sidebar" aria-expanded="false" type="button"><i data-lucide="panel-left" aria-hidden="true"></i></button><div><strong>Swaran Soft Assistant</strong><small>Your enterprise AI companion</small></div></div>
-        <div class="sw-topbar-actions"><span class="sw-availability" id="sw-connection"><span class="sw-dot"></span><span id="sw-connection-label">Connecting</span></span><button class="sw-icon" id="sw-delete" type="button" aria-label="Delete this conversation" data-tooltip="Delete conversation" disabled><i data-lucide="trash-2" aria-hidden="true"></i></button></div>
+        <div class="sw-topbar-actions"><button class="sw-icon" id="sw-delete" type="button" aria-label="Delete this conversation" data-tooltip="Delete conversation" disabled><i data-lucide="trash-2" aria-hidden="true"></i></button></div>
       </header>
       <div class="sw-setup" id="sw-setup" role="status" hidden></div>
       <div class="sw-content" id="sw-scroll">

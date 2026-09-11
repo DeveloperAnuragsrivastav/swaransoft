@@ -4,7 +4,8 @@
 #swaran-app *{box-sizing:border-box;letter-spacing:0}
 #swaran-app button,#swaran-app select,#swaran-app textarea{font:inherit;color:inherit}
 #swaran-app button{cursor:pointer}#swaran-app button:disabled{cursor:default;opacity:.5}
-#swaran-app button:focus-visible,#swaran-app select:focus-visible,#swaran-app textarea:focus-visible{outline:2px solid var(--sw-accent);outline-offset:3px}
+#swaran-app button:focus-visible,#swaran-app select:focus-visible{outline:2px solid var(--sw-accent);outline-offset:3px}
+#swaran-app textarea:focus{outline:none}
 #swaran-app [hidden]{display:none!important}
 #swaran-app .sw-demo{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 18px;background:#fff9f5;border-bottom:1px solid #f3e3d8;color:#8d3c1a;font-size:12px}
 #swaran-app .sw-demo-label{display:flex;gap:8px;align-items:center}
@@ -77,7 +78,7 @@
 #swaran-app .sw-retry{border:1px solid #ecc7bd;border-radius:5px;background:#fff;padding:5px 10px;font-size:12px;margin-top:10px;display:flex;align-items:center;gap:7px}
 #swaran-app .sw-composer-area{padding:0 var(--sw-space) 17px;max-width:660px;width:100%;margin:0 auto}
 #swaran-app .sw-composer{border:1px solid #ccd9df;border-radius:var(--sw-radius);background:var(--sw-paper);box-shadow:0 4px 20px #193e5010;overflow:hidden;transition:border-color .15s}
-#swaran-app .sw-composer:focus-within{border-color:var(--sw-accent)}
+#swaran-app .sw-composer:focus-within{border-color:#8b9ca5}
 #swaran-app textarea{display:block;width:100%;resize:none;min-height:71px;max-height:150px;background:transparent;border:0;padding:16px 16px 4px;font-size:14px;line-height:1.5}
 #swaran-app textarea::placeholder{color:#82909b}
 #swaran-app .sw-compose-tools{display:flex;align-items:center;gap:6px;padding:6px 10px 10px;min-width:0}
